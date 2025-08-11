@@ -2,15 +2,17 @@
   "name": "backendpracticas",
   "version": "1.0.0",
   "description": "demo",
-  "main": "app.js",
+  "main": "appb.js",
   "scripts": {
-    "dev": "nodemon app.js",
+    "dev": "nodemon appb.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "joy",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "joi": "^18.0.0",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
