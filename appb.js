@@ -6,7 +6,9 @@ const fs = require("fs");
 const path = require("path");
 const Joi = require("joi");
 const multer = require("multer");
+const cors = require("cors");
 app.use(express.json());
+app.use(cors());
 
 const filePath = path.join(
   "D:",
@@ -22,7 +24,7 @@ const imagepath = path.join(
   "SystemData",
   "uploads"
 );
-
+app.use("/uploads", express.static(imagepath));
 const validCareers = [
   "Ingeniería en Sistemas",
   "Ingeniería Mecatrónica",
@@ -199,75 +201,47 @@ app.get("/api/residentes/:uId", (req, res) => {
   });
 });
 
-app.post(
-  "/api/residentes",
-  /*upload.single("image"),*/ (req, res) => {
-    const newUser = req.body;
+app.post("/api/residentes", upload.single("image"), (req, res) => {
+  const newUser = { ...req.body };
 
-    const { error, value } = RegisterSchema.validate(req.body, {
-      abortEarly: false,
-    });
-
-    if (error) {
-      return res.status(400).json({
-        errores: error.details.map((detail) => detail.message),
-      });
+  // Convertir ProgrammingLanguajes de string a objeto
+  if (typeof newUser.ProgrammingLanguajes === "string") {
+    try {
+      newUser.ProgrammingLanguajes = JSON.parse(newUser.ProgrammingLanguajes);
+    } catch (err) {
+      return res
+        .status(400)
+        .json({ errores: ["ProgrammingLanguajes inválido"] });
     }
+  }
 
-    newUser.id = Date.now() + Math.floor(Math.random() * 1000);
-    //newUser.image = path.join(imagepath, req.file.filename);
+  const { error, value } = RegisterSchema.validate(newUser, {
+    abortEarly: false,
+  });
 
-    fs.readFile(filePath, "utf-8", (err, filedata) => {
-      if (err) {
-        console.error("no se leyó bien el archivo", err);
-        return res
-          .status(500)
-          .json({ error: "no jalo la lectura del archivo del servidor" });
-      } else {
-        try {
-          const MemoryUsers = JSON.parse(filedata);
-
-          const OneUser = MemoryUsers.find((u) => u.id === newUser.id);
-
-          if (OneUser) {
-            res.json(`ese usuario que deseas añadir ya existe :  ${OneUser}`);
-          } else {
-            MemoryUsers.push(newUser);
-
-            fs.writeFile(
-              filePath,
-              JSON.stringify(MemoryUsers, null, 2),
-              (err) => {
-                if (err) {
-                  console.error(
-                    "fallo durante la escritura de users-json",
-                    err
-                  );
-                  return res.status(500).json({
-                    error: "Error al guardar un nuevo usuario en json users",
-                  });
-                } else {
-                  res.status(201).json({
-                    message: "Usuario guardado exitosamente",
-                    user: newUser,
-                  });
-                }
-              }
-            );
-          }
-        } catch (parseErr) {
-          console.error(
-            "no funcionó la conversión del archivojson de usuarios",
-            parseErr
-          );
-          res
-            .status(500)
-            .json({ error: "no jalo el procesamiento de los datos de users" });
-        }
-      }
+  if (error) {
+    return res.status(400).json({
+      errores: error.details.map((detail) => detail.message),
     });
   }
-);
+
+  newUser.id = Date.now() + Math.floor(Math.random() * 1000);
+  if (req.file) {
+    newUser.image = path.join(imagepath, req.file.filename);
+  }
+
+  // Leer JSON existente y guardar
+  fs.readFile(filePath, "utf-8", (err, filedata) => {
+    if (err) return res.status(500).json({ error: "Error leyendo archivo" });
+    const MemoryUsers = JSON.parse(filedata);
+    MemoryUsers.push(newUser);
+    fs.writeFile(filePath, JSON.stringify(MemoryUsers, null, 2), (err) => {
+      if (err)
+        return res.status(500).json({ error: "Error guardando usuario" });
+      res.status(201).json({ message: "Usuario guardado", user: newUser });
+    });
+  });
+});
 
 app.put("/api/residentes/:uId", (req, res) => {
   const newUser = req.body;
